@@ -3,15 +3,17 @@
 # This script is experimental and does not ensure any security.
 
 echo ""
-echo -n "Enter your the domain you want to host BookStack and press [ENTER]: "
+echo -n "Enter the domain you want to host BookStack and press [ENTER]: "
 read DOMAIN
 
 myip=$(ip addr | grep 'state UP' -A2 | tail -n1 | awk '{print $2}' | cut -f1  -d'/')
 
 export DEBIAN_FRONTEND=noninteractive
 apt update
-apt install -y git nginx curl php7.0 php7.0-curl php7.0-mbstring php7.0-ldap php7.0-mcrypt \
-php7.0-tidy php7.0-xml php7.0-zip php7.0-gd php7.0-mysql mysql-server-5.7 mcrypt
+apt install -y software-properties-common python-software-properties
+add-apt-repository -yu ppa:ondrej/php
+apt install -y git nginx curl php7.4 php7.4-fpm php7.4-curl php7.4-mbstring php7.4-ldap \
+php7.4-tidy php7.4-xml php7.4-zip php7.4-gd php7.4-mysql mysql-server-5.7
 
 # Set up database
 DB_PASS="$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 13)"
@@ -41,14 +43,16 @@ else
     exit 1
 fi
 
-# Install BookStack composer dependancies
-php composer.phar install
+# Install BookStack composer dependencies
+php composer.phar install --no-dev
 
 # Copy and update BookStack environment variables
 cp .env.example .env
+sed -i.bak "s@APP_URL=.*\$@APP_URL=http://$DOMAIN@" .env
 sed -i.bak 's/DB_DATABASE=.*$/DB_DATABASE=bookstack/' .env
 sed -i.bak 's/DB_USERNAME=.*$/DB_USERNAME=bookstack/' .env
 sed -i.bak "s/DB_PASSWORD=.*\$/DB_PASSWORD=$DB_PASS/" .env
+
 # Generate the application key
 php artisan key:generate --no-interaction --force
 # Migrate the databases
